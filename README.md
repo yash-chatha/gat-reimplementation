@@ -48,11 +48,17 @@ python code/train.py --dataset Cora
 python code/train.py --dataset CiteSeer
 ```
 
-**Run 100-trial evaluation (saves CSV to results/):**
+On Colab with Drive mounted at  
+`/content/drive/MyDrive/[Cornell] Spring Junior/CS 4782/gat-reimplementation`,  
+`train.py` caches Planetoid under that repo’s `gat_data/` by default (otherwise `/tmp`).
+
+**Run 100-trial evaluation (saves CSV under `results/`):**
 ```bash
 python code/evaluate.py --dataset Cora
 python code/evaluate.py --dataset CiteSeer
 ```
+
+In Colab, CSVs default to the same Drive repo’s `results/` when that path exists; override with `--results-dir` if needed.
 
 **Run low-label benchmark (few-day friendly defaults):**
 ```bash

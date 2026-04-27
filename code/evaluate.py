@@ -9,20 +9,28 @@ Usage:
 
 import argparse
 import csv
-import os
 from pathlib import Path
 
 import numpy as np
 
 from train import run
 
-RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 NUM_RUNS = 100
 
 
-def evaluate(dataset_name: str):
-    RESULTS_DIR.mkdir(exist_ok=True)
-    csv_path = RESULTS_DIR / f"{dataset_name}_results.csv"
+def _default_results_dir() -> Path:
+    """Prefer mounted Google Drive in Colab; fallback to local repo."""
+    colab_repo = Path(
+        "/content/drive/MyDrive/[Cornell] Spring Junior/CS 4782/gat-reimplementation"
+    )
+    if colab_repo.exists():
+        return colab_repo / "results"
+    return Path(__file__).resolve().parent.parent / "results"
+
+
+def evaluate(dataset_name: str, results_dir: Path):
+    results_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = results_dir / f"{dataset_name}_results.csv"
 
     accuracies = []
 
@@ -61,8 +69,17 @@ def main():
         choices=["Cora", "CiteSeer", "PubMed"],
         help="Dataset to evaluate (default: Cora)",
     )
+    parser.add_argument(
+        "--results-dir",
+        type=Path,
+        default=_default_results_dir(),
+        help=(
+            "Directory to save CSV results. Defaults to mounted Google Drive path "
+            "in Colab if available, otherwise repo/results."
+        ),
+    )
     args = parser.parse_args()
-    evaluate(args.dataset)
+    evaluate(args.dataset, args.results_dir)
 
 
 if __name__ == "__main__":

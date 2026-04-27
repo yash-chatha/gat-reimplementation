@@ -10,6 +10,12 @@ Returns test accuracy after training with early stopping.
 """
 
 import argparse
+import copy
+import random
+from pathlib import Path
+from typing import Optional
+
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch_geometric.datasets import Planetoid
@@ -24,7 +30,17 @@ LR = 0.005
 WEIGHT_DECAY = 5e-4
 DROPOUT = 0.6
 EPOCHS = 10_000
-PATIENCE = 100        # early stopping patience on validation loss
+PATIENCE = 100  # early stopping patience on validation loss
+
+
+def _default_planetoid_parent() -> Path:
+    """Prefer mounted Google Drive in Colab; else ephemeral /tmp."""
+    colab_repo = Path(
+        "/content/drive/MyDrive/[Cornell] Spring Junior/CS 4782/gat-reimplementation"
+    )
+    if colab_repo.exists():
+        return colab_repo / "gat_data"
+    return Path("/tmp")
 
 
 def train_epoch(model, data, optimizer):
@@ -38,22 +54,43 @@ def train_epoch(model, data, optimizer):
 
 
 @torch.no_grad()
+def evaluate_val_loss(model, data):
+    model.eval()
+    out = model(data.x, data.edge_index)
+    return F.nll_loss(out[data.val_mask], data.y[data.val_mask]).item()
+
+
+@torch.no_grad()
+def test_accuracy(model, data):
+    model.eval()
+    out = model(data.x, data.edge_index)
+    pred = out.argmax(dim=1)
+    return (pred[data.test_mask] == data.y[data.test_mask]).float().mean().item()
+
+
+@torch.no_grad()
 def evaluate(model, data):
     model.eval()
     out = model(data.x, data.edge_index)
-
     val_loss = F.nll_loss(out[data.val_mask], data.y[data.val_mask]).item()
-
     pred = out.argmax(dim=1)
     val_acc = (pred[data.val_mask] == data.y[data.val_mask]).float().mean().item()
     test_acc = (pred[data.test_mask] == data.y[data.test_mask]).float().mean().item()
-
     return val_loss, val_acc, test_acc
 
 
-def load_data(dataset_name: str, device: torch.device):
+def load_data(
+    dataset_name: str,
+    device: torch.device,
+    planetoid_parent: Optional[Path] = None,
+):
+    parent = (
+        planetoid_parent if planetoid_parent is not None else _default_planetoid_parent()
+    )
+    parent.mkdir(parents=True, exist_ok=True)
+    root = str(parent / dataset_name)
     dataset = Planetoid(
-        root=f"/tmp/{dataset_name}",
+        root=root,
         name=dataset_name,
         transform=NormalizeFeatures(),
     )
@@ -85,12 +122,21 @@ def run(
     model_name: str = "gat",
     train_mask_override: torch.Tensor | None = None,
     return_model_and_data: bool = False,
+    planetoid_parent: Optional[Path] = None,
 ) -> float | tuple[float, torch.nn.Module, object]:
     """Train model on `dataset_name`, return best test accuracy."""
+    random.seed(seed)
+    np.random.seed(seed)
     torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    dataset, data = load_data(dataset_name, device)
+    dataset, data = load_data(
+        dataset_name=dataset_name,
+        device=device,
+        planetoid_parent=planetoid_parent,
+    )
 
     if train_mask_override is not None:
         data.train_mask = train_mask_override.to(device)
@@ -102,22 +148,25 @@ def run(
     )
 
     best_val_loss = float("inf")
-    best_test_acc = 0.0
+    best_state = copy.deepcopy(model.state_dict())
     patience_counter = 0
 
-    for epoch in range(1, EPOCHS + 1):
+    for _epoch in range(1, EPOCHS + 1):
         train_epoch(model, data, optimizer)
-        val_loss, val_acc, test_acc = evaluate(model, data)
+        val_loss = evaluate_val_loss(model, data)
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            best_test_acc = test_acc
+            best_state = copy.deepcopy(model.state_dict())
             patience_counter = 0
         else:
             patience_counter += 1
 
         if patience_counter >= PATIENCE:
             break
+
+    model.load_state_dict(best_state)
+    best_test_acc = test_accuracy(model, data)
 
     if return_model_and_data:
         return best_test_acc, model, data
@@ -141,9 +190,23 @@ def main():
         choices=["gat", "tinygat"],
         help="Model architecture to use",
     )
+    parser.add_argument(
+        "--planetoid-parent",
+        type=Path,
+        default=None,
+        help=(
+            "Directory under which Planetoid datasets are stored "
+            "(default: Drive gat_data if mounted, else /tmp)."
+        ),
+    )
     args = parser.parse_args()
 
-    test_acc = run(args.dataset, seed=args.seed, model_name=args.model)
+    test_acc = run(
+        args.dataset,
+        seed=args.seed,
+        model_name=args.model,
+        planetoid_parent=args.planetoid_parent,
+    )
     print(f"[{args.dataset} | {args.model}] Test Accuracy: {test_acc * 100:.2f}%")
 
 
