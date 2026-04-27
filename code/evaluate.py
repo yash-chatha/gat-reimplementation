@@ -58,7 +58,7 @@ def main():
         "--dataset",
         type=str,
         default="Cora",
-        choices=["Cora", "CiteSeer"],
+        choices=["Cora", "CiteSeer", "PubMed"],
         help="Dataset to evaluate (default: Cora)",
     )
     args = parser.parse_args()

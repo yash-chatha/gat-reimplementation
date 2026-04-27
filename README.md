@@ -54,6 +54,23 @@ python code/evaluate.py --dataset Cora
 python code/evaluate.py --dataset CiteSeer
 ```
 
+**Run low-label benchmark (few-day friendly defaults):**
+```bash
+python code/low_label_benchmark.py --dataset Cora --ratios 0.1 0.2 0.5 1.0 --runs 10
+python code/low_label_benchmark.py --dataset CiteSeer --ratios 0.1 0.2 0.5 1.0 --runs 10
+```
+
+**Run TinyGAT distillation benchmark:**
+```bash
+python code/distill_tinygat.py --dataset Cora --runs 5
+python code/distill_tinygat.py --dataset CiteSeer --runs 5
+```
+
+**Export failure cases with neighborhood + attention context:**
+```bash
+python code/failure_case_explorer.py --dataset Cora --seed 1 --max-cases 25 --top-k-edges 5
+```
+
 ## Results / Insights
 
 [TODO] Fill in after running evaluate.py. Report mean ± std accuracy for Cora and CiteSeer. Note any deviations from paper results and potential causes (random seed variance, implementation differences, etc.).
@@ -62,6 +79,17 @@ python code/evaluate.py --dataset CiteSeer
 |----------|-------------|------------|
 | Cora     | 83.0 ± 0.7% | [TODO]     |
 | CiteSeer | 72.5 ± 0.7% | [TODO]     |
+
+### Additional Outputs (new scripts)
+
+- `results/<dataset>_low_label_detail.csv`:
+  per-run test accuracy for each label ratio.
+- `results/<dataset>_low_label_summary.csv`:
+  mean/std test accuracy for each label ratio.
+- `results/<dataset>_tinygat_distill.csv`:
+  teacher accuracy, TinyGAT supervised accuracy, TinyGAT distilled accuracy, and distillation gain per seed.
+- `results/<dataset>_seed<seed>_failure_cases.csv` and `.json`:
+  misclassified test nodes with confidence, neighborhood class histogram, and top incoming attention edges.
 
 ## Conclusion
 
