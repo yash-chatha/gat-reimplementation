@@ -9,23 +9,25 @@ Paper: [Graph Attention Networks, Veličković et al., ICLR 2018](https://arxiv.
 
 ## Introduction
 
-[TODO] Brief overview of Graph Attention Networks and why they improve on prior graph neural network methods (GCN, GraphSAGE) by using learned attention coefficients over neighbors.
+This repository re-implements Graph Attention Networks (GATs), which learn node representations by attending over graph neighborhoods — assigning learned importance weights to each neighbor rather than treating them equally. GATs improve on prior graph convolution methods (GCN, GraphSAGE) by enabling adaptive, node-specific aggregation without requiring knowledge of the full graph structure upfront.
 
 ## Chosen Result
 
-[TODO] We target Table 2 from the paper: **83.0 ± 0.7%** accuracy on Cora and **72.5 ± 0.7%** accuracy on CiteSeer (transductive classification, averaged over 100 runs).
+We reproduce **Table 2** from the paper: transductive node classification accuracy on Cora and CiteSeer, averaged over 100 runs. The paper reports **83.0 ± 0.7%** on Cora and **72.5 ± 0.7%** on CiteSeer using a 2-layer GAT with 8-head attention.
 
 ## GitHub Contents
 
 ```
 gat-reimplementation/
 ├── code/
-│   ├── model.py      # 2-layer GAT model (PyTorch Geometric)
+│   ├── model.py      # GAT + TinyGAT model definitions (PyTorch Geometric)
 │   ├── train.py      # Training loop with early stopping
 │   └── evaluate.py   # 100-run evaluation, saves results to CSV
 ├── data/
 │   └── README.md     # Dataset info (auto-downloaded via PyG)
-├── results/          # CSV outputs from evaluate.py
+├── notebooks/
+│   └── GAT_Colab.ipynb  # Full Colab notebook: baseline + 3 extensions
+├── results/          # CSVs, JSONs, and figures from all experiments
 ├── poster/           # Final poster PDF
 ├── report/           # Final report PDF
 └── README.md
@@ -33,7 +35,18 @@ gat-reimplementation/
 
 ## Re-implementation Details
 
-[TODO] Describe architecture choices: 2-layer GAT, 8 heads × 8 features in layer 1, 1 head outputting num_classes in layer 2, ELU activation, dropout=0.6, Adam optimizer (lr=0.005, weight_decay=5e-4), early stopping patience=100.
+We implement a 2-layer GAT using PyTorch Geometric's `GATConv`, matching the paper's transductive setup exactly:
+
+- **Layer 1:** 8 attention heads × 8 features = 64-dim output, ELU activation, dropout 0.6
+- **Layer 2:** 1 attention head → num_classes, log-softmax output, dropout 0.6
+- **Optimizer:** Adam, lr=0.005, weight_decay=5e-4 (L2 λ=0.0005)
+- **Early stopping:** patience=100 on validation loss
+- **Datasets:** Cora and CiteSeer via PyG Planetoid loader with NormalizeFeatures; standard public splits (20 nodes/class train, 500 val, 1000 test)
+
+We also implement three extensions (in `notebooks/GAT_Colab.ipynb`):
+- **Low-Label Benchmark:** GAT accuracy vs. fraction of training labels (0.1–1.0)
+- **TinyGAT Distillation:** knowledge distillation from full GAT to a compressed student (2 heads × 4 features)
+- **Failure Case Explorer:** misclassified test nodes with confidence, neighbor class histogram, and top attention edges
 
 ## Reproduction Steps
 
@@ -48,64 +61,59 @@ python code/train.py --dataset Cora
 python code/train.py --dataset CiteSeer
 ```
 
-On Colab with Drive mounted at  
-`/content/drive/MyDrive/[Cornell] Spring Junior/CS 4782/gat-reimplementation`,  
-`train.py` caches Planetoid under that repo’s `gat_data/` by default (otherwise `/tmp`).
-
-**Run 100-trial evaluation (saves CSV under `results/`):**
+**Run 100-trial evaluation (saves CSV to `results/`):**
 ```bash
 python code/evaluate.py --dataset Cora
 python code/evaluate.py --dataset CiteSeer
 ```
 
-In Colab, CSVs default to the same Drive repo’s `results/` when that path exists; override with `--results-dir` if needed.
+**Run extensions (low-label, distillation, failure cases):**
+Open `notebooks/GAT_Colab.ipynb` in Google Colab with GPU enabled and run cells top to bottom. Results and figures are saved to `RESULTS_DIR` (default `/content/gat_results/`; set to a mounted Drive path to persist across sessions).
 
-**Run low-label benchmark (few-day friendly defaults):**
-```bash
-python code/low_label_benchmark.py --dataset Cora --ratios 0.1 0.2 0.5 1.0 --runs 10
-python code/low_label_benchmark.py --dataset CiteSeer --ratios 0.1 0.2 0.5 1.0 --runs 10
-```
-
-**Run TinyGAT distillation benchmark:**
-```bash
-python code/distill_tinygat.py --dataset Cora --runs 5
-python code/distill_tinygat.py --dataset CiteSeer --runs 5
-```
-
-**Export failure cases with neighborhood + attention context:**
-```bash
-python code/failure_case_explorer.py --dataset Cora --seed 1 --max-cases 25 --top-k-edges 5
-```
+> GPU recommended — 100 runs on CPU is slow. Enable via Runtime → Change runtime type → T4 GPU.
 
 ## Results / Insights
 
-[TODO] Fill in after running evaluate.py. Report mean ± std accuracy for Cora and CiteSeer. Note any deviations from paper results and potential causes (random seed variance, implementation differences, etc.).
+### Baseline (Table 2 reproduction)
 
 | Dataset  | Paper Result | Our Result |
 |----------|-------------|------------|
-| Cora     | 83.0 ± 0.7% | [TODO]     |
-| CiteSeer | 72.5 ± 0.7% | [TODO]     |
+| Cora     | 83.0 ± 0.7% | **83.22 ± 0.41%** ✅ |
+| CiteSeer | 72.5 ± 0.7% | **70.94 ± 0.52%** |
 
-### Additional Outputs (new scripts)
+Cora matches and slightly exceeds the paper's target. CiteSeer falls 1.56% short, likely due to our early stopping monitoring only validation loss rather than both loss and accuracy as specified in the original implementation.
 
-- `results/<dataset>_low_label_detail.csv`:
-  per-run test accuracy for each label ratio.
-- `results/<dataset>_low_label_summary.csv`:
-  mean/std test accuracy for each label ratio.
-- `results/<dataset>_tinygat_distill.csv`:
-  teacher accuracy, TinyGAT supervised accuracy, TinyGAT distilled accuracy, and distillation gain per seed.
-- `results/<dataset>_seed<seed>_failure_cases.csv` and `.json`:
-  misclassified test nodes with confidence, neighborhood class histogram, and top incoming attention edges.
+### Extension Results (Cora)
+
+**Low-Label Benchmark** — accuracy degrades sharply below 50% of training labels; variance spikes at 10% (std=5.9% vs. 0.5% at full labels):
+
+| Label fraction | Labels | Mean accuracy | Std |
+|---|---|---|---|
+| 10% | 14 | 58.84% | ±5.90% |
+| 20% | 28 | 69.04% | ±4.60% |
+| 50% | 70 | 79.96% | ±1.26% |
+| 100% | 140 | 83.06% | ±0.48% |
+
+![Low-label curve](results/Cora_low_label_curve.png)
+
+**TinyGAT Distillation** — mean distillation gain of −0.24% over 5 seeds. TinyGAT trained with supervision alone nearly matches the full GAT teacher on Cora, suggesting the dataset is simple enough that model capacity is not the bottleneck.
+
+![Distillation gain](results/Cora_distillation_gain.png)
+
+**Failure Case Explorer** — 25 misclassified test nodes analyzed. Most failures occur on nodes with mixed-class neighborhoods. Two high-confidence errors (92% and 93%) involve nodes whose top attention neighbors are predominantly from the wrong class. Node 1358 appears as a high-attention source in 6 of 25 failure cases, acting as a hub that pulls surrounding predictions toward class 2.
+
+![Failure confidence](results/Cora_failure_confidence.png)
 
 ## Conclusion
 
-[TODO] Summarize whether we successfully reproduced the paper's results, and any insights gained about attention mechanisms in graph neural networks.
+We successfully reproduced the GAT paper's Cora result (83.22% vs. 83.0%) and came close on CiteSeer (70.94% vs. 72.5%). Our extensions show that GAT's performance degrades sharply with few labels, that a 6× smaller TinyGAT already performs near the teacher on simple datasets making distillation minimally beneficial, and that most misclassifications occur on structurally ambiguous nodes with mixed-class neighborhoods where attention cannot disambiguate the true label.
 
 ## References
 
 - Veličković, P., Cucurull, G., Casanova, A., Romero, A., Liò, P., & Bengio, Y. (2018). [Graph Attention Networks](https://arxiv.org/abs/1710.10903). *ICLR 2018*.
-- [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/)
+- Fey, M. & Lenssen, J.E. (2019). [Fast Graph Representation Learning with PyTorch Geometric](https://arxiv.org/abs/1903.02428). *ICLR Workshop*.
+- Yang, Z., Cohen, W., & Salakhutdinov, R. (2016). [Revisiting Semi-Supervised Learning with Graph Embeddings](https://arxiv.org/abs/1603.08861). *ICML*.
 
 ## Acknowledgements
 
-[TODO] Acknowledge CS 4782 course staff, any external code references, and compute resources used.
+This project was completed as part of **CS 4782: Deep Learning** at Cornell University. We thank the course staff for guidance throughout the project. Datasets were accessed via [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/). Experiments were run on Google Colab with GPU acceleration.
