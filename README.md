@@ -48,6 +48,18 @@ We also implement three extensions (in `notebooks/GAT_Colab.ipynb`):
 - **TinyGAT Distillation:** knowledge distillation from full GAT to a compressed student (2 heads × 4 features)
 - **Failure Case Explorer:** misclassified test nodes with confidence, neighbor class histogram, and top attention edges
 
+### Why these extensions (motivation and goal)
+
+The paper's main result asks whether GAT is accurate on standard transductive benchmarks under the canonical split and model setup. We keep that as the primary target in this repo.
+
+The extensions are **post-reproduction stress tests** designed to answer practical questions that the original paper does not directly focus on:
+
+- **Low-label benchmark (sample efficiency):** if labeled nodes are scarce, how quickly does performance and stability degrade?
+- **TinyGAT distillation (efficiency):** can a much smaller student recover teacher performance, enabling cheaper/faster deployment?
+- **Failure case explorer (diagnostics):** when GAT is wrong, is it usually because neighborhoods are class-mixed or attention is drawn to misleading neighbors?
+
+To avoid conflicting with the paper, we treat these as additional analyses rather than new claims about the original Table 2 target. In other words, baseline reproduction evaluates alignment with Veličković et al. (2018), while extensions evaluate robustness, efficiency, and interpretability under constrained settings.
+
 ## Reproduction Steps
 
 **Install dependencies:**
@@ -84,6 +96,8 @@ Open `notebooks/GAT_Colab.ipynb` in Google Colab with GPU enabled and run cells 
 Cora matches and slightly exceeds the paper's target. CiteSeer falls 1.56% short, likely due to our early stopping monitoring only validation loss rather than both loss and accuracy as specified in the original implementation.
 
 ### Extension Results
+
+These experiments are supplementary to (not replacements for) the paper-aligned baseline above.
 
 **Low-Label Benchmark** — both datasets degrade sharply below 50% labels, but CiteSeer collapses far more severely due to its sparser features. At 10% labels, one CiteSeer run hits 8.3% — below random chance for 6 classes (16.7%) — while Cora's worst run stays above 50%:
 
