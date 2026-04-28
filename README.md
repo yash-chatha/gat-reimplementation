@@ -83,30 +83,33 @@ Open `notebooks/GAT_Colab.ipynb` in Google Colab with GPU enabled and run cells 
 
 Cora matches and slightly exceeds the paper's target. CiteSeer falls 1.56% short, likely due to our early stopping monitoring only validation loss rather than both loss and accuracy as specified in the original implementation.
 
-### Extension Results (Cora)
+### Extension Results
 
-**Low-Label Benchmark** — accuracy degrades sharply below 50% of training labels; variance spikes at 10% (std=5.9% vs. 0.5% at full labels):
+**Low-Label Benchmark** — both datasets degrade sharply below 50% labels, but CiteSeer collapses far more severely due to its sparser features. At 10% labels, one CiteSeer run hits 8.3% — below random chance for 6 classes (16.7%) — while Cora's worst run stays above 50%:
 
-| Label fraction | Labels | Mean accuracy | Std |
-|---|---|---|---|
-| 10% | 14 | 58.84% | ±5.90% |
-| 20% | 28 | 69.04% | ±4.60% |
-| 50% | 70 | 79.96% | ±1.26% |
-| 100% | 140 | 83.06% | ±0.48% |
+| Label fraction | Cora labels | Cora mean | Cora std | CiteSeer labels | CiteSeer mean | CiteSeer std |
+|---|---|---|---|---|---|---|
+| 10% | 14 | 58.84% | ±5.90% | 12 | 30.16% | ±17.89% |
+| 20% | 28 | 69.04% | ±4.60% | 24 | 41.64% | ±20.60% |
+| 50% | 70 | 79.96% | ±1.26% | 60 | 65.88% | ±1.49% |
+| 100% | 140 | 83.06% | ±0.48% | 120 | 71.00% | ±0.42% |
 
-![Low-label curve](results/Cora_low_label_curve.png)
+![Low-label curve Cora](results/Cora_low_label_curve.png)
+![Low-label curve CiteSeer](results/CiteSeer_low_label_curve.png)
 
-**TinyGAT Distillation** — mean distillation gain of −0.24% over 5 seeds. TinyGAT trained with supervision alone nearly matches the full GAT teacher on Cora, suggesting the dataset is simple enough that model capacity is not the bottleneck.
+**TinyGAT Distillation** — mean distillation gain of −0.24% on Cora and −0.66% on CiteSeer over 5 seeds. TinyGAT with supervision alone nearly matches the full GAT teacher on both datasets, suggesting neither dataset is complex enough for model capacity to be the bottleneck.
 
-![Distillation gain](results/Cora_distillation_gain.png)
+![Distillation gain Cora](results/Cora_distillation_gain.png)
+![Distillation gain CiteSeer](results/CiteSeer_distillation_gain.png)
 
-**Failure Case Explorer** — 25 misclassified test nodes analyzed. Most failures occur on nodes with mixed-class neighborhoods. Two high-confidence errors (92% and 93%) involve nodes whose top attention neighbors are predominantly from the wrong class. Node 1358 appears as a high-attention source in 6 of 25 failure cases, acting as a hub that pulls surrounding predictions toward class 2.
+**Failure Case Explorer** — 25 misclassified nodes on Cora, 24 on CiteSeer. Most failures occur on nodes with mixed-class neighborhoods. On Cora, node 1358 appears as a high-attention source in 6 of 25 failure cases, acting as a hub that pulls surrounding predictions toward class 2; two errors exceed 92% confidence. On CiteSeer, failures are more diffuse with no dominant hub, and the highest-confidence error (node 2365, 85.3% wrong) involves two of three neighbors from the incorrect class.
 
-![Failure confidence](results/Cora_failure_confidence.png)
+![Failure confidence Cora](results/Cora_failure_confidence.png)
+![Failure confidence CiteSeer](results/CiteSeer_failure_confidence.png)
 
 ## Conclusion
 
-We successfully reproduced the GAT paper's Cora result (83.22% vs. 83.0%) and came close on CiteSeer (70.94% vs. 72.5%). Our extensions show that GAT's performance degrades sharply with few labels, that a 6× smaller TinyGAT already performs near the teacher on simple datasets making distillation minimally beneficial, and that most misclassifications occur on structurally ambiguous nodes with mixed-class neighborhoods where attention cannot disambiguate the true label.
+We successfully reproduced the GAT paper's Cora result (83.22% vs. 83.0%) and came close on CiteSeer (70.94% vs. 72.5%). Our extensions show that GAT's performance degrades sharply with few labels — CiteSeer collapses to near-random at 10% labels while Cora degrades gracefully, revealing a dataset-level sensitivity to label scarcity driven by feature sparsity. A 6× smaller TinyGAT already performs near the teacher on both datasets, making distillation minimally beneficial. Most misclassifications occur on structurally ambiguous nodes with mixed-class neighborhoods where attention cannot disambiguate the true label.
 
 ## References
 
