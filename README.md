@@ -9,7 +9,7 @@ Paper: [Graph Attention Networks, Veličković et al., ICLR 2018](https://arxiv.
 
 ## Introduction
 
-This repository is a course re-implementation of **Graph Attention Networks (GATs)** by Veličković et al. (ICLR 2018) for CS 4782: Deep Learning at Cornell University. GATs replace the fixed equal-weight neighbor aggregation of GCNs with a learned, edge-level attention mechanism that assigns per-neighbor importance weights without requiring knowledge of the full graph structure upfront.
+This repository is a re-implementation of **Graph Attention Networks (GATs)** by Veličković et al. (ICLR 2018) for CS 4782: Deep Learning at Cornell University. GATs replace the fixed equal-weight neighbor aggregation of GCNs with a learned, edge-level attention mechanism that assigns per-neighbor importance weights without requiring knowledge of the full graph structure upfront.
 
 ## Chosen Result
 
@@ -104,7 +104,7 @@ Cora matches and slightly exceeds the paper's target. CiteSeer falls 1.56% short
 ![Distillation gain Cora](results/Cora_distillation_gain.png)
 ![Distillation gain CiteSeer](results/CiteSeer_distillation_gain.png)
 
-**Failure Case Explorer:** 25 misclassified nodes on Cora, 24 on CiteSeer, falling into two modes: ambiguous neighborhoods (near-uniform attention, low confidence) and hub node influence (one wrong-class neighbor dominates). On Cora, node 1358 appears as a top-5 attention source in 6 of 25 failures, with two errors exceeding 92% confidence.
+**Failure Case Explorer:** There are 25 misclassified nodes on Cora, 24 on CiteSeer, and they fall into two modes: ambiguous neighborhoods (near-uniform attention, low confidence) and hub node influence (one wrong-class neighbor dominates). On Cora, node 1358 appears as a top-5 attention source in 6 of 25 failures, with two errors exceeding 92% confidence. Here, confidence is measured as the softmax probability of the predicted class. 
 
 ![Failure confidence Cora](results/Cora_failure_confidence.png)
 ![Failure confidence CiteSeer](results/CiteSeer_failure_confidence.png)
