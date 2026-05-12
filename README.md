@@ -9,7 +9,7 @@ Paper: [Graph Attention Networks, Veličković et al., ICLR 2018](https://arxiv.
 
 ## Introduction
 
-This reposiitory contains our reimplementation of **Graph Attention Networks (GATs)** by Veličković et al. (ICLR 2018). We reproduce **Table 2** from the paper: transductive node classification accuracy on Cora and CiteSeer averaged over 100 runs (paper: 83.0 ± 0.7% / 72.5 ± 0.7%). This is the paper's central empirical claim that learned attention outperforms fixed-weight GCN aggregation (81.5% / 70.3%), and reproducing it validates the full architecture and training protocol. 
+This reposiitory contains our reimplementation of **Graph Attention Networks (GATs)** by Veličković et al. (ICLR 2018). We reproduce **Table 2** from the paper: transductive node classification accuracy on Cora and CiteSeer averaged over 100 runs (paper: 83.0 ± 0.7% / 72.5 ± 0.7%). This is the paper's central claim that learned attention outperforms fixed-weight GCN aggregation (81.5% / 70.3%), and reproducing it validates the full architecture and training protocol. 
 
 We also implement three extensions beyond the baseline:
 - **Low-Label Benchmark:** GAT accuracy vs. fraction of training labels (0.1–1.0)
@@ -44,7 +44,7 @@ We implement a 2-layer GAT using PyTorch Geometric's `GATConv`, matching the pap
 - **Datasets:** Cora and CiteSeer via PyG Planetoid with NormalizeFeatures; standard public splits (20 nodes/class train, 500 val, 1000 test)
 - **Evaluation:** 100 independent seeds; mean ± std test accuracy reported
 
-**Key modification:** We monitor only validation loss for early stopping (patience=100) rather than both loss and accuracy as in the original TensorFlow implementation, a deliberate choice for consistency across all experiments. Our first extension, which tests performance at low label counts, introduces an instablity with respect to accuracy-based stopping. This deviation likely accounts for our 1.56% gap on CiteSeer.
+**Key modification:** We monitor only validation loss for early stopping (patience=100) rather than both loss and accuracy as in the original TensorFlow implementation. We did this to ensure consistency across all experiments: our first extension, which tests performance at low label counts, introduces an instablity with respect to accuracy-based stopping.
 
 
 ## Reproduction Steps
@@ -80,7 +80,7 @@ Open `notebooks/GAT_Colab.ipynb` in Google Colab with GPU enabled (Runtime → C
 | Cora     | 83.0 ± 0.7% | **83.22 ± 0.41%** | 
 | CiteSeer | 72.5 ± 0.7% | **70.94 ± 0.52%** |
 
-Cora matches and slightly exceeds the paper's target. CiteSeer falls 1.56% short, which we atrribute to our early stopping modification (loss-only vs. loss+accuracy).
+Cora matches and slightly exceeds the paper's target, while CiteSeer falls 1.56% short. We believe that this deviation on the CiteSeer dataset was due to the modification we made to the methedology outlined above. 
 
 ### Extension Results
 
@@ -96,7 +96,7 @@ Cora matches and slightly exceeds the paper's target. CiteSeer falls 1.56% short
 ![Low-label curve Cora](results/Cora_low_label_curve.png)
 ![Low-label curve CiteSeer](results/CiteSeer_low_label_curve.png)
 
-**TinyGAT Distillation:** Mean distillation gain of −0.24% on Cora and −0.66% on CiteSeer over 5 seeds. TinyGAT with supervision alone nearly matches the full GAT teacher on both datasets, suggesting model capacity is not the bottleneck on these benchmarks. We're able to train more efficiently without trading off too much!
+**TinyGAT Distillation:** We experience a mean distillation gain of −0.24% on Cora and −0.66% on CiteSeer over 5 seeds. TinyGAT with supervision alone nearly matches the full GAT teacher on both datasets, suggesting model capacity is not the bottleneck on these benchmarks. We're able to train more efficiently without trading off too much with accuracy!
 
 ![Distillation gain Cora](results/Cora_distillation_gain.png)
 ![Distillation gain CiteSeer](results/CiteSeer_distillation_gain.png)
