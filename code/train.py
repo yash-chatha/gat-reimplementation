@@ -21,7 +21,8 @@ import torch.nn.functional as F
 from torch_geometric.datasets import Planetoid
 from torch_geometric.transforms import NormalizeFeatures
 
-from model import GAT, TinyGAT
+from model import GAT, TinyGAT, PubMedGAT
+from model_repulsive import RepulsiveGAT
 
 # --------------------------------------------------------------------------- #
 # Hyperparameters (from Veličković et al., 2018)
@@ -111,6 +112,18 @@ def build_model(model_name: str, dataset, dropout: float, device: torch.device):
             num_classes=dataset.num_classes,
             dropout=dropout,
         )
+    elif model_name == "pubmedgat":
+        model = PubMedGAT(
+            num_features=dataset.num_features,
+            num_classes=dataset.num_classes,
+            dropout=dropout,
+        )
+    elif model_name == "repulsivegat":
+        model = RepulsiveGAT(
+            num_features=dataset.num_features,
+            num_classes=dataset.num_classes,
+            dropout=dropout,
+        )
     else:
         raise ValueError(f"Unsupported model_name: {model_name}")
     return model.to(device)
@@ -123,6 +136,8 @@ def run(
     train_mask_override: torch.Tensor | None = None,
     return_model_and_data: bool = False,
     planetoid_parent: Optional[Path] = None,
+    ablate_features: bool = False,
+    ablate_topology: bool = False,
 ) -> float | tuple[float, torch.nn.Module, object]:
     """Train model on `dataset_name`, return best test accuracy."""
     random.seed(seed)
@@ -138,20 +153,36 @@ def run(
         planetoid_parent=planetoid_parent,
     )
 
+    if ablate_features:
+        # Replace sparse features with random normal features to ablate sparsity
+        data.x = torch.randn_like(data.x)
+
+    if ablate_topology:
+        # Remove all edges, reducing GNN to MLP
+        data.edge_index = torch.empty((2, 0), dtype=torch.long, device=device)
+
     if train_mask_override is not None:
         data.train_mask = train_mask_override.to(device)
 
+    if dataset_name == "PubMed" and model_name == "gat":
+        model_name = "pubmedgat"
+
     model = build_model(model_name=model_name, dataset=dataset, dropout=DROPOUT, device=device)
 
+    # Hyperparameters based on dataset
+    lr = 0.01 if dataset_name == "PubMed" else LR
+    weight_decay = 0.001 if dataset_name == "PubMed" else WEIGHT_DECAY
+    epochs = 200 if dataset_name == "PubMed" else EPOCHS
+
     optimizer = torch.optim.Adam(
-        model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY
+        model.parameters(), lr=lr, weight_decay=weight_decay
     )
 
     best_val_loss = float("inf")
     best_state = copy.deepcopy(model.state_dict())
     patience_counter = 0
 
-    for _epoch in range(1, EPOCHS + 1):
+    for _epoch in range(1, epochs + 1):
         train_epoch(model, data, optimizer)
         val_loss = evaluate_val_loss(model, data)
 
@@ -187,7 +218,7 @@ def main():
         "--model",
         type=str,
         default="gat",
-        choices=["gat", "tinygat"],
+        choices=["gat", "tinygat", "repulsivegat"],
         help="Model architecture to use",
     )
     parser.add_argument(
@@ -199,6 +230,16 @@ def main():
             "(default: Drive gat_data if mounted, else /tmp)."
         ),
     )
+    parser.add_argument(
+        "--ablate-features",
+        action="store_true",
+        help="Ablate features by replacing with random noise",
+    )
+    parser.add_argument(
+        "--ablate-topology",
+        action="store_true",
+        help="Ablate topology by removing all edges",
+    )
     args = parser.parse_args()
 
     test_acc = run(
@@ -206,9 +247,10 @@ def main():
         seed=args.seed,
         model_name=args.model,
         planetoid_parent=args.planetoid_parent,
+        ablate_features=args.ablate_features,
+        ablate_topology=args.ablate_topology,
     )
     print(f"[{args.dataset} | {args.model}] Test Accuracy: {test_acc * 100:.2f}%")
-
 
 if __name__ == "__main__":
     main()

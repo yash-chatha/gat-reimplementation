@@ -74,6 +74,18 @@ class GAT(ConfigurableGAT):
         )
 
 
+class PubMedGAT(ConfigurableGAT):
+    def __init__(self, num_features: int, num_classes: int, dropout: float = 0.6):
+        super().__init__(
+            num_features=num_features,
+            num_classes=num_classes,
+            hidden_channels=8,
+            heads_first=8,
+            heads_second=8,
+            dropout=dropout,
+        )
+
+
 class TinyGAT(ConfigurableGAT):
     def __init__(self, num_features: int, num_classes: int, dropout: float = 0.6):
         super().__init__(
